@@ -1,0 +1,10 @@
+language: php
+php:
+  - 7.4
+before_install:
+  - composer install
+  - mkdir -p build/logs
+script:
+  - phpunit --coverage-clover build/logs/clover.xml
+after_script:
+  - vendor/bin/php-coveralls -v

@@ -1,0 +1,34 @@
+{
+    "name": "kapxapot/plasticode-di",
+    "description": "PHP DI container and autowirer",
+    "keywords": ["PHP", "Plasticode", "DI", "Dependency Injection", "Container", "Autowirer", "Autowiring"],
+    "homepage": "https://github.com/kapxapot/plasticode-di",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Sergey Atroshchenko (kapxapot)",
+            "email": "kapxapot@gmail.com",
+            "homepage": "https://about.me/kapxapot"
+        }
+    ],
+    "require": {
+        "php": "^7.4"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9",
+        "php-coveralls/php-coveralls": "^2.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "Plasticode\\DI\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Plasticode\\DI\\Tests\\": "tests"
+        }
+    },
+    "scripts": {
+        "test": "phpunit --colors=always"
+    }
+}
