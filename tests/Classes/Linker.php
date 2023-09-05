@@ -2,6 +2,9 @@
 
 namespace Plasticode\DI\Tests\Classes;
 
+use Plasticode\DI\Tests\Interfaces\LinkerInterface;
+use Plasticode\DI\Tests\Interfaces\SettingsProviderInterface;
+
 class Linker implements LinkerInterface
 {
     private SettingsProviderInterface $settingsProvider;
@@ -11,5 +14,10 @@ class Linker implements LinkerInterface
     )
     {
         $this->settingsProvider = $settingsProvider;
+    }
+
+    public function settingsProvider(): SettingsProviderInterface
+    {
+        return $this->settingsProvider;
     }
 }

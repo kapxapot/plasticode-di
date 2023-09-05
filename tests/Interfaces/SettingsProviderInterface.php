@@ -1,6 +1,6 @@
 <?php
 
-namespace Plasticode\DI\Tests\Classes;
+namespace Plasticode\DI\Tests\Interfaces;
 
 interface SettingsProviderInterface
 {

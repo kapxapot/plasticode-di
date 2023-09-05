@@ -1,6 +1,10 @@
 <?php
 
-namespace Plasticode\DI\Tests\Classes;
+namespace Plasticode\DI\Tests\Factories;
+
+use Plasticode\DI\Tests\Classes\Session;
+use Plasticode\DI\Tests\Interfaces\SessionInterface;
+use Plasticode\DI\Tests\Interfaces\SettingsProviderInterface;
 
 class SessionFactory
 {

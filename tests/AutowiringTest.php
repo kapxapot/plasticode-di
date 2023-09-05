@@ -7,12 +7,12 @@ use Plasticode\DI\Autowirer;
 use Plasticode\DI\Containers\AutowiringContainer;
 use Plasticode\DI\ParamResolvers\UntypedContainerParamResolver;
 use Plasticode\DI\Tests\Classes\Linker;
-use Plasticode\DI\Tests\Classes\LinkerInterface;
 use Plasticode\DI\Tests\Classes\Session;
-use Plasticode\DI\Tests\Classes\SessionFactory;
-use Plasticode\DI\Tests\Classes\SessionInterface;
 use Plasticode\DI\Tests\Classes\SettingsProvider;
-use Plasticode\DI\Tests\Classes\SettingsProviderInterface;
+use Plasticode\DI\Tests\Factories\SessionFactory;
+use Plasticode\DI\Tests\Interfaces\LinkerInterface;
+use Plasticode\DI\Tests\Interfaces\SessionInterface;
+use Plasticode\DI\Tests\Interfaces\SettingsProviderInterface;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\ContainerInterface;
 use stdClass;
@@ -35,11 +35,32 @@ final class AutowiringTest extends TestCase
         parent::tearDown();
     }
 
+    /**
+     * Creates a container with the provided mappings.
+     */
     private function createContainer(?array $map = null): AutowiringContainer
     {
         return new AutowiringContainer($this->autowirer, $map);
     }
 
+    /**
+     * Tests that an "empty" container successfully resolves:
+     * - ContainerInterface
+     * - Autowirer
+     */
+    public function testAutowireDefaults(): void
+    {
+        $container = $this->createContainer();
+
+        $this->assertSame($container, $container->get(ContainerInterface::class));
+        $this->assertSame($this->autowirer, $container->get(Autowirer::class));
+    }
+
+    /**
+     * Tests that if something cannot be autowired:
+     * - `has()` returns false
+     * - `get()` throws an exception
+     */
     public function testAutowireFails(): void
     {
         $container = $this->createContainer();
@@ -53,6 +74,11 @@ final class AutowiringTest extends TestCase
         $container->get(SettingsProviderInterface::class);
     }
 
+    /**
+     * Tests the simple mapping `interface` -> `class`.
+     *
+     * SettingsProviderInterface -(maps to)-> SettingsProvider
+     */
     public function testAutowireSimple(): void
     {
         $container = $this->createContainer([
@@ -71,6 +97,17 @@ final class AutowiringTest extends TestCase
         $this->assertInstanceOf(SettingsProvider::class, $settingsProvider);
     }
 
+    /**
+     * Tests the dependency injection of a class into another class.
+     *
+     * LinkerInterface -(maps to)-> Linker
+     * SettingsProviderInterface -(is injected into)-> Linker
+     * SettingsProviderInterface -(maps to)-> SettingsProvider
+     *
+     * As a result:
+     *
+     * SettingsProvider -(is injected into)-> Linker
+     */
     public function testAutowireDependency(): void
     {
         $container = $this->createContainer([
@@ -89,14 +126,24 @@ final class AutowiringTest extends TestCase
         $this->assertInstanceOf(LinkerInterface::class, $linker);
         $this->assertInstanceOf(Linker::class, $linker);
 
-        $settingsProvider = $container->get(
-            SettingsProviderInterface::class
-        );
+        $settingsProvider = $linker->settingsProvider();
 
         $this->assertInstanceOf(SettingsProviderInterface::class, $settingsProvider);
         $this->assertInstanceOf(SettingsProvider::class, $settingsProvider);
     }
 
+    /**
+     * Tests the class instantiation using a factory (an invokable class).
+     *
+     * SessionInterface -(maps to)-> SessionFactory
+     * SessionFactory -(makes)-> Session
+     * SettingsProviderInterface -(is injected into)-> SessionFactory
+     * SettingsProviderInterface -(maps to)-> SettingsProvider
+     *
+     * As a result:
+     *
+     * SettingsProvider -(is injected into)-> Session
+     */
     public function testAutowireFactory(): void
     {
         $container = $this->createContainer([
@@ -112,15 +159,34 @@ final class AutowiringTest extends TestCase
 
         $this->assertInstanceOf(SessionInterface::class, $session);
         $this->assertInstanceOf(Session::class, $session);
+
+        $settingsProvider = $session->settingsProvider();
+
+        $this->assertInstanceOf(SettingsProviderInterface::class, $settingsProvider);
+        $this->assertInstanceOf(SettingsProvider::class, $settingsProvider);
     }
 
-    public function testAutowireCallableFactory(): void
+    /**
+     * Tests the class instantiation using a function (callable factory).
+     *
+     * This mapping is equivalent to the standalone factory, but the class
+     * creation is made inline.
+     *
+     * SessionInterface -(maps to)-> function
+     * function -(makes)-> Session
+     * SettingsProviderInterface -(is injected into)-> function
+     * SettingsProviderInterface -(maps to)-> SettingsProvider
+     *
+     * As a result:
+     *
+     * SettingsProvider -(is injected into)-> Session
+     */
+    public function testAutowireFunctionFactory(): void
     {
         $container = $this->createContainer([
             SettingsProviderInterface::class => SettingsProvider::class,
             SessionInterface::class =>
-                fn (ContainerInterface $container) =>
-                    new Session($container->get(SettingsProviderInterface::class)),
+                fn (SettingsProviderInterface $sp) => new Session($sp),
         ]);
 
         $this->assertTrue(
@@ -131,9 +197,26 @@ final class AutowiringTest extends TestCase
 
         $this->assertInstanceOf(SessionInterface::class, $session);
         $this->assertInstanceOf(Session::class, $session);
+
+        $settingsProvider = $session->settingsProvider();
+
+        $this->assertInstanceOf(SettingsProviderInterface::class, $settingsProvider);
+        $this->assertInstanceOf(SettingsProvider::class, $settingsProvider);
     }
 
-    public function testAutowireCallable(): void
+    /**
+     * This test checks that the untyped parameter can be resolver using
+     * a custom resolver.
+     *
+     * SettingsProviderInterface -(maps to)-> function with untyped param
+     * function -(resolves)-> aaa
+     * aaa -(maps to)-> SettingsProvider
+     *
+     * As a result:
+     *
+     * SettingsProviderInterface -(maps to)-> SettingsProvider
+     */
+    public function testParamResolver(): void
     {
         // add a resolver for an untyped `$container` param
         $this->autowirer->withUntypedParamResolver(
@@ -141,46 +224,44 @@ final class AutowiringTest extends TestCase
         );
 
         $outerContainer = $this->createContainer([
+            SettingsProviderInterface::class => fn ($container) => $container->get('aaa'),
             'aaa' => SettingsProvider::class,
         ]);
 
-        $callable = fn ($container) => $container->get('aaa');
+        $settingsProvider = $outerContainer->get(SettingsProviderInterface::class);
 
-        $ccc = $this->autowirer->autowireCallable($outerContainer, $callable);
-
-        $this->assertInstanceOf(SettingsProvider::class, $ccc);
+        $this->assertInstanceOf(SettingsProviderInterface::class, $settingsProvider);
+        $this->assertInstanceOf(SettingsProvider::class, $settingsProvider);
     }
 
-    public function testUntypedContainerResolution(): void
-    {
-        // add a resolver for an untyped `$container` param
-        $this->autowirer->withUntypedParamResolver(
-            new UntypedContainerParamResolver()
-        );
-
-        $outerContainer = $this->createContainer([
-            'aaa' => SettingsProvider::class,
-            'ccc' => fn ($container) => $container->get('aaa'),
-        ]);
-
-        $ccc = $outerContainer->get('ccc');
-
-        $this->assertInstanceOf(SettingsProvider::class, $ccc);
-    }
-
-    public function testAliasAndRedirect(): void
+    /**
+     * Tests that an aliasing works.
+     *
+     * Usually it's used for interface1 -> interface2 mapping.
+     *
+     * aaa -(maps to)-> stdClass
+     * bbb -(is aliased to)-> aaa
+     * ccc -(resolves as)-> bbb
+     *
+     * As a result:
+     *
+     * aaa, bbb and ccc are resolved as the same object.
+     */
+    public function testAlias(): void
     {
         $container = $this->createContainer([
-            'aaa' => 'bbb',
-            'bbb' => new stdClass(),
-            'ccc' => fn (ContainerInterface $c) => $c->get('bbb'),
+            'aaa' => new stdClass(),
+            'bbb' => 'aaa',
+            'ccc' => fn (ContainerInterface $c) => $c->get('bbb'), // equivalent to 'ccc' => 'bbb'
         ]);
 
-        $ccc = $container->get('ccc');
-        $bbb = $container->get('bbb');
         $aaa = $container->get('aaa');
+        $bbb = $container->get('bbb');
+        $ccc = $container->get('ccc');
 
-        $this->assertEquals($aaa, $bbb);
-        $this->assertEquals($ccc, $bbb);
+        // all keys are resolved as the same object
+        $this->assertSame($aaa, $bbb);
+        $this->assertSame($bbb, $ccc);
+        $this->assertSame($ccc, $aaa);
     }
 }
