@@ -2,6 +2,6 @@
 
 namespace Plasticode\DI\Tests\Interfaces;
 
-interface SettingsProviderInterface
+interface TerminusInterface
 {
 }

@@ -6,13 +6,15 @@ use PHPUnit\Framework\TestCase;
 use Plasticode\DI\Autowirer;
 use Plasticode\DI\Containers\AutowiringContainer;
 use Plasticode\DI\ParamResolvers\UntypedContainerParamResolver;
-use Plasticode\DI\Tests\Classes\Linker;
-use Plasticode\DI\Tests\Classes\Session;
-use Plasticode\DI\Tests\Classes\SettingsProvider;
-use Plasticode\DI\Tests\Factories\SessionFactory;
-use Plasticode\DI\Tests\Interfaces\LinkerInterface;
-use Plasticode\DI\Tests\Interfaces\SessionInterface;
-use Plasticode\DI\Tests\Interfaces\SettingsProviderInterface;
+use Plasticode\DI\Tests\Classes\Dependant;
+use Plasticode\DI\Tests\Classes\Invokable;
+use Plasticode\DI\Tests\Classes\Terminus;
+use Plasticode\DI\Tests\Factories\DependantFactory;
+use Plasticode\DI\Tests\Factories\DependantFactoryFactory;
+use Plasticode\DI\Tests\Factories\InvokableFactory;
+use Plasticode\DI\Tests\Interfaces\DependantInterface;
+use Plasticode\DI\Tests\Interfaces\InvokableInterface;
+use Plasticode\DI\Tests\Interfaces\TerminusInterface;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\ContainerInterface;
 use stdClass;
@@ -48,7 +50,7 @@ final class AutowiringTest extends TestCase
      * - ContainerInterface
      * - Autowirer
      */
-    public function testAutowireDefaults(): void
+    public function testDefaults(): void
     {
         $container = $this->createContainer();
 
@@ -61,109 +63,94 @@ final class AutowiringTest extends TestCase
      * - `has()` returns false
      * - `get()` throws an exception
      */
-    public function testAutowireFails(): void
+    public function testUndefined(): void
     {
         $container = $this->createContainer();
 
         $this->assertFalse(
-            $container->has(SettingsProviderInterface::class)
+            $container->has(TerminusInterface::class)
         );
 
         $this->expectException(ContainerExceptionInterface::class);
 
-        $container->get(SettingsProviderInterface::class);
+        $container->get(TerminusInterface::class);
     }
 
     /**
      * Tests the simple mapping `interface` -> `class`.
      *
-     * SettingsProviderInterface -(maps to)-> SettingsProvider
+     * TerminusInterface -(maps to)-> Terminus
      */
-    public function testAutowireSimple(): void
+    public function testSimple(): void
     {
         $container = $this->createContainer([
-            SettingsProviderInterface::class => SettingsProvider::class,
+            TerminusInterface::class => Terminus::class,
         ]);
 
         $this->assertTrue(
-            $container->has(SettingsProviderInterface::class)
+            $container->has(TerminusInterface::class)
         );
 
-        $settingsProvider = $container->get(
-            SettingsProviderInterface::class
-        );
-
-        $this->assertInstanceOf(SettingsProviderInterface::class, $settingsProvider);
-        $this->assertInstanceOf(SettingsProvider::class, $settingsProvider);
+        $this->assertInstanceOf(Terminus::class, $container->get(TerminusInterface::class));
     }
 
     /**
      * Tests the dependency injection of a class into another class.
      *
-     * LinkerInterface -(maps to)-> Linker
-     * SettingsProviderInterface -(is injected into)-> Linker
-     * SettingsProviderInterface -(maps to)-> SettingsProvider
+     * DependantInterface -(maps to)-> Dependant
+     * TerminusInterface -(is injected into)-> Dependant
+     * TerminusInterface -(maps to)-> Terminus
      *
      * As a result:
      *
-     * SettingsProvider -(is injected into)-> Linker
+     * Terminus -(is injected into)-> Dependant
      */
-    public function testAutowireDependency(): void
+    public function testDependency(): void
     {
         $container = $this->createContainer([
-            LinkerInterface::class => Linker::class,
-            SettingsProviderInterface::class => SettingsProvider::class,
+            DependantInterface::class => Dependant::class,
+            TerminusInterface::class => Terminus::class,
         ]);
 
         $this->assertTrue(
-            $container->has(LinkerInterface::class)
+            $container->has(DependantInterface::class)
         );
 
-        $linker = $container->get(
-            LinkerInterface::class
-        );
+        /** @var DependantInterface */
+        $dependant = $container->get(DependantInterface::class);
 
-        $this->assertInstanceOf(LinkerInterface::class, $linker);
-        $this->assertInstanceOf(Linker::class, $linker);
-
-        $settingsProvider = $linker->settingsProvider();
-
-        $this->assertInstanceOf(SettingsProviderInterface::class, $settingsProvider);
-        $this->assertInstanceOf(SettingsProvider::class, $settingsProvider);
+        $this->assertInstanceOf(Dependant::class, $dependant);
+        $this->assertInstanceOf(Terminus::class, $dependant->dependency());
     }
 
     /**
      * Tests the class instantiation using a factory (an invokable class).
      *
-     * SessionInterface -(maps to)-> SessionFactory
-     * SessionFactory -(makes)-> Session
-     * SettingsProviderInterface -(is injected into)-> SessionFactory
-     * SettingsProviderInterface -(maps to)-> SettingsProvider
+     * DependantInterface -(maps to)-> DependantFactory
+     * DependantFactory -(makes)-> Dependant
+     * TerminusInterface -(is injected into)-> DependantFactory
+     * TerminusInterface -(maps to)-> Terminus
      *
      * As a result:
      *
-     * SettingsProvider -(is injected into)-> Session
+     * Terminus -(is injected into)-> Dependant
      */
-    public function testAutowireFactory(): void
+    public function testFactory(): void
     {
         $container = $this->createContainer([
-            SettingsProviderInterface::class => SettingsProvider::class,
-            SessionInterface::class => SessionFactory::class,
+            TerminusInterface::class => Terminus::class,
+            DependantInterface::class => DependantFactory::class,
         ]);
 
         $this->assertTrue(
-            $container->has(SessionInterface::class)
+            $container->has(DependantInterface::class)
         );
 
-        $session = $container->get(SessionInterface::class);
+        /** @var DependantInterface */
+        $dependant = $container->get(DependantInterface::class);
 
-        $this->assertInstanceOf(SessionInterface::class, $session);
-        $this->assertInstanceOf(Session::class, $session);
-
-        $settingsProvider = $session->settingsProvider();
-
-        $this->assertInstanceOf(SettingsProviderInterface::class, $settingsProvider);
-        $this->assertInstanceOf(SettingsProvider::class, $settingsProvider);
+        $this->assertInstanceOf(Dependant::class, $dependant);
+        $this->assertInstanceOf(Terminus::class, $dependant->dependency());
     }
 
     /**
@@ -172,49 +159,44 @@ final class AutowiringTest extends TestCase
      * This mapping is equivalent to the standalone factory, but the class
      * creation is made inline.
      *
-     * SessionInterface -(maps to)-> function
-     * function -(makes)-> Session
-     * SettingsProviderInterface -(is injected into)-> function
-     * SettingsProviderInterface -(maps to)-> SettingsProvider
+     * DependantInterface -(maps to)-> function
+     * function -(makes)-> Dependant
+     * TerminusInterface -(is injected into)-> function
+     * TerminusInterface -(maps to)-> Terminus
      *
      * As a result:
      *
-     * SettingsProvider -(is injected into)-> Session
+     * Terminus -(is injected into)-> Dependant
      */
-    public function testAutowireFunctionFactory(): void
+    public function testFunctionFactory(): void
     {
         $container = $this->createContainer([
-            SettingsProviderInterface::class => SettingsProvider::class,
-            SessionInterface::class =>
-                fn (SettingsProviderInterface $sp) => new Session($sp),
+            TerminusInterface::class => Terminus::class,
+            DependantInterface::class => fn (TerminusInterface $t) => new Dependant($t),
         ]);
 
         $this->assertTrue(
-            $container->has(SessionInterface::class)
+            $container->has(DependantInterface::class)
         );
 
-        $session = $container->get(SessionInterface::class);
+        /** @var DependantInterface */
+        $dependant = $container->get(DependantInterface::class);
 
-        $this->assertInstanceOf(SessionInterface::class, $session);
-        $this->assertInstanceOf(Session::class, $session);
-
-        $settingsProvider = $session->settingsProvider();
-
-        $this->assertInstanceOf(SettingsProviderInterface::class, $settingsProvider);
-        $this->assertInstanceOf(SettingsProvider::class, $settingsProvider);
+        $this->assertInstanceOf(Dependant::class, $dependant);
+        $this->assertInstanceOf(Terminus::class, $dependant->dependency());
     }
 
     /**
-     * This test checks that the untyped parameter can be resolver using
+     * This test checks that the untyped parameter can be resolved using
      * a custom resolver.
      *
-     * SettingsProviderInterface -(maps to)-> function with untyped param
+     * TerminusInterface -(maps to)-> function with untyped param
      * function -(resolves)-> aaa
-     * aaa -(maps to)-> SettingsProvider
+     * aaa -(maps to)-> Terminus
      *
      * As a result:
      *
-     * SettingsProviderInterface -(maps to)-> SettingsProvider
+     * TerminusInterface -(maps to)-> Terminus
      */
     public function testParamResolver(): void
     {
@@ -224,18 +206,18 @@ final class AutowiringTest extends TestCase
         );
 
         $outerContainer = $this->createContainer([
-            SettingsProviderInterface::class => fn ($container) => $container->get('aaa'),
-            'aaa' => SettingsProvider::class,
+            TerminusInterface::class => fn ($container) => $container->get('aaa'),
+            'aaa' => Terminus::class,
         ]);
 
-        $settingsProvider = $outerContainer->get(SettingsProviderInterface::class);
-
-        $this->assertInstanceOf(SettingsProviderInterface::class, $settingsProvider);
-        $this->assertInstanceOf(SettingsProvider::class, $settingsProvider);
+        $this->assertInstanceOf(
+            Terminus::class,
+            $outerContainer->get(TerminusInterface::class)
+        );
     }
 
     /**
-     * Tests that an aliasing works.
+     * Tests that an alias works.
      *
      * Usually it's used for interface1 -> interface2 mapping.
      *
@@ -263,5 +245,114 @@ final class AutowiringTest extends TestCase
         $this->assertSame($aaa, $bbb);
         $this->assertSame($bbb, $ccc);
         $this->assertSame($ccc, $aaa);
+    }
+
+    /**
+     * Tests mapping to a concrete object.
+     */
+    public function testObject(): void
+    {
+        $container = $this->createContainer([
+            'a' => new Dependant(new Terminus()),
+            'b' => new DependantFactory(),
+            DependantInterface::class => new Dependant(new Terminus()),
+            Dependant::class => new DependantFactoryFactory(),
+            TerminusInterface::class => Terminus::class,
+        ]);
+
+        // 'a' is just an object
+        $this->assertInstanceOf(Dependant::class, $container->get('a'));
+        // 'b' is a product of the factory
+        $this->assertInstanceOf(Dependant::class, $container->get('b'));
+
+        // just an object
+        $this->assertInstanceOf(
+            Dependant::class,
+            $container->get(DependantInterface::class)
+        );
+
+        // the factory factory produces a factory which produces an object
+        $this->assertInstanceOf(
+            Dependant::class,
+            $container->get(Dependant::class)
+        );
+    }
+
+    public function testFactoryResolvedOrNot(): void
+    {
+        $container = $this->createContainer([
+            TerminusInterface::class => Terminus::class,
+            'a' => DependantFactory::class,
+            'b' => new DependantFactory(),
+            'c' => DependantFactoryFactory::class,
+            'd' => new DependantFactoryFactory(),
+            DependantInterface::class => DependantFactoryFactory::class,
+            Dependant::class => fn () => new DependantFactoryFactory(),
+        ]);
+
+        // for string keys (not class or interface names) the callable resolution
+        // should be done only one time because we do not know what the expected
+        // result is
+        //
+        // as a result, DependantFactory produces Dependant, but DependantFactoryFactory
+        // produces DependantFactory
+        $this->assertInstanceOf(Dependant::class, $container->get('a'));
+        $this->assertInstanceOf(Dependant::class, $container->get('b'));
+        $this->assertInstanceOf(DependantFactory::class, $container->get('c'));
+        $this->assertInstanceOf(DependantFactory::class, $container->get('d'));
+
+        // for interfaces and classes the callable chain is resolved until it finds the
+        // required class/interface or the object isn't invokable anymore
+        $this->assertInstanceOf(
+            Dependant::class,
+            $container->get(DependantInterface::class)
+        );
+
+        $this->assertInstanceOf(
+            Dependant::class,
+            $container->get(Dependant::class)
+        );
+    }
+
+    /**
+     * Tests that upon a resolution of a chain of invokables the autowirer stops
+     * when it finds a required object and doesn't invoke it further even if the object
+     * is invokable itself.
+     */
+    public function testInvokableIsntInvoked(): void
+    {
+        $container = $this->createContainer([
+            InvokableInterface::class => InvokableFactory::class,
+            TerminusInterface::class => Terminus::class,
+        ]);
+
+        /** @var InvokableInterface */
+        $invokable = $container->get(InvokableInterface::class);
+
+        $this->assertInstanceOf(InvokableInterface::class, $invokable);
+        $this->assertInstanceOf(Invokable::class, $invokable);
+
+        $this->assertIsCallable($invokable);
+
+        $result = $this->autowirer->autowireCallable($container, $invokable);
+
+        $this->assertInstanceOf(TerminusInterface::class, $result);
+        $this->assertInstanceOf(Terminus::class, $result);
+    }
+
+    /**
+     * Tests that an exception is thrown when the callable chain is resolved
+     * as an incorrect class instance.
+     */
+    public function testIncorrectInvokable(): void
+    {
+        $container = $this->createContainer([
+            InvokableInterface::class => DependantFactory::class,
+            TerminusInterface::class => Terminus::class,
+        ]);
+
+        $this->expectException(ContainerExceptionInterface::class);
+
+        $container->get(InvokableInterface::class);
     }
 }

@@ -2,7 +2,6 @@
 
 namespace Plasticode\DI\Containers;
 
-use Closure;
 use Exception;
 use Plasticode\DI\Autowirer;
 use Plasticode\DI\Exceptions\ContainerException;
@@ -97,25 +96,45 @@ class AutowiringContainer extends AggregatingContainer
     /**
      * @throws ContainerExceptionInterface
      */
-    public function resolveCallable(string $id, callable $object): object
+    protected function resolveCallable(string $id, callable $object): object
     {
-        if (!interface_exists($id) && !class_exists($id)) {
-            return $object instanceof Closure
-                ? $this->autowirer->autowireCallable($this, $object)
+        $isKnown = interface_exists($id) || class_exists($id);
+
+        if (!$isKnown) {
+            return is_callable($object)
+                ? $this->autowireCallable($object)
                 : $object;
         }
 
         try {
             while (!($object instanceof $id) && is_callable($object)) {
-                $object = $this->autowirer->autowireCallable($this, $object);
+                $object = $this->autowireCallable($object);
             }
 
-            return $object;
+            if ($object instanceof $id) {
+                return $object;
+            }
+
+            throw new Exception(
+                sprintf(
+                    'The callable chain ended up with "%s". "%s" was not found.',
+                    is_object($object) ? get_class($object) : gettype($object),
+                    $id
+                )
+            );
         } catch (Exception $ex) {
-            $message = sprintf("Error while resolving a callable for \"%s\".", $id);
+            $message = sprintf('Error while resolving a callable for "%s".', $id);
 
             throw new ContainerException($message, 0, $ex);
         }
+    }
+
+    /**
+     * @return mixed
+     */
+    protected function autowireCallable(callable $callable)
+    {
+        return $this->autowirer->autowireCallable($this, $callable);
     }
 
     /**
@@ -129,14 +148,14 @@ class AutowiringContainer extends AggregatingContainer
         }
         catch (InvalidConfigurationException $ex) {
             throw new NotFoundException(
-                sprintf("Failed to autowire \"%s\".", $className),
+                sprintf('Failed to autowire "%s".', $className),
                 0,
                 $ex
             );
         }
         catch (Exception $ex) {
             throw new ContainerException(
-                sprintf("Error while autowiring \"%s\".", $className),
+                sprintf('Error while autowiring "%s".', $className),
                 0,
                 $ex
             );
