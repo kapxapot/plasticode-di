@@ -91,7 +91,10 @@ final class AutowiringTest extends TestCase
             $container->has(TerminusInterface::class)
         );
 
-        $this->assertInstanceOf(Terminus::class, $container->get(TerminusInterface::class));
+        $this->assertInstanceOf(
+            Terminus::class,
+            $container->get(TerminusInterface::class)
+        );
     }
 
     /**
@@ -156,7 +159,7 @@ final class AutowiringTest extends TestCase
     /**
      * Tests the class instantiation using a function (callable factory).
      *
-     * This mapping is equivalent to the standalone factory, but the class
+     * This mapping is equivalent to a standalone factory, but the class
      * creation is made inline.
      *
      * DependantInterface -(maps to)-> function
@@ -187,10 +190,11 @@ final class AutowiringTest extends TestCase
     }
 
     /**
-     * This test checks that the untyped parameter can be resolved using
-     * a custom resolver.
+     * This test checks that:
+     * - An untyped parameter can be resolved using a custom resolver.
+     * - A string key can be resoved even if it's not a class/interface name.
      *
-     * TerminusInterface -(maps to)-> function with untyped param
+     * TerminusInterface -(maps to)-> function with an untyped param
      * function -(resolves)-> aaa
      * aaa -(maps to)-> Terminus
      *
@@ -200,7 +204,7 @@ final class AutowiringTest extends TestCase
      */
     public function testParamResolver(): void
     {
-        // add a resolver for an untyped `$container` param
+        // add a resolver for the untyped `$container` param
         $this->autowirer->withUntypedParamResolver(
             new UntypedContainerParamResolver()
         );
@@ -262,7 +266,8 @@ final class AutowiringTest extends TestCase
 
         // 'a' is just an object
         $this->assertInstanceOf(Dependant::class, $container->get('a'));
-        // 'b' is a product of the factory
+
+        // 'b' is a product of a factory
         $this->assertInstanceOf(Dependant::class, $container->get('b'));
 
         // just an object
@@ -291,8 +296,11 @@ final class AutowiringTest extends TestCase
         ]);
 
         // for string keys (not class or interface names) the callable resolution
-        // should be done only one time because we do not know what the expected
+        // should be done only *one time* because we do not know what the expected
         // result is
+        //
+        // if a key is mapped to a concrete object, it is returned as is
+        // if a key is mapped to a callable, the callable is resolved once and returned
         //
         // as a result, DependantFactory produces Dependant, but DependantFactoryFactory
         // produces DependantFactory
@@ -316,7 +324,7 @@ final class AutowiringTest extends TestCase
 
     /**
      * Tests that upon a resolution of a chain of invokables the autowirer stops
-     * when it finds a required object and doesn't invoke it further even if the object
+     * when it finds the requested object and doesn't invoke it further even if the object
      * is invokable itself.
      */
     public function testInvokableIsntInvoked(): void
