@@ -82,15 +82,15 @@ class AutowiringContainer extends AggregatingContainer
 
     protected function setResolved(string $id, object $object): object
     {
-        $resultObject = $object;
+        $resolvedObject = $object;
 
         if (is_callable($object)) {
-            $resultObject = $this->resolveCallable($id, $object);
+            $resolvedObject = $this->resolveCallable($id, $object);
         }
 
-        $this->resolved[$id] = $resultObject;
+        $this->resolved[$id] = $resolvedObject;
 
-        return $resultObject;
+        return $resolvedObject;
     }
 
     /**
@@ -115,16 +115,15 @@ class AutowiringContainer extends AggregatingContainer
                 return $object;
             }
 
-            throw new Exception(
-                sprintf(
-                    'The callable chain ended up with "%s". "%s" was not found.',
-                    is_object($object) ? get_class($object) : gettype($object),
-                    $id
-                )
+            $message = sprintf(
+                'The callable chain ended up with "%s". "%s" was not found.',
+                is_object($object) ? get_class($object) : gettype($object),
+                $id
             );
+
+            throw new Exception($message);
         } catch (Exception $ex) {
             $message = sprintf('Error while resolving a callable for "%s".', $id);
-
             throw new ContainerException($message, 0, $ex);
         }
     }
@@ -147,18 +146,12 @@ class AutowiringContainer extends AggregatingContainer
             return $this->autowirer->autowire($this, $className);
         }
         catch (InvalidConfigurationException $ex) {
-            throw new NotFoundException(
-                sprintf('Failed to autowire "%s".', $className),
-                0,
-                $ex
-            );
+            $message = sprintf('Failed to autowire "%s".', $className);
+            throw new NotFoundException($message, 0, $ex);
         }
         catch (Exception $ex) {
-            throw new ContainerException(
-                sprintf('Error while autowiring "%s".', $className),
-                0,
-                $ex
-            );
+            $message = sprintf('Error while autowiring "%s".', $className);
+            throw new ContainerException($message, 0, $ex);
         }
     }
 }

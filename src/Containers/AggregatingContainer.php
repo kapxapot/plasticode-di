@@ -22,7 +22,7 @@ class AggregatingContainer extends ArrayContainer
 
     /**
      * @param ContainerInterface|array $container
-     * @return static
+     * @return $this
      */
     public function withContainer($container): self
     {

@@ -32,7 +32,6 @@ class Autowirer
     public function withUntypedParamResolver(ParamFactoryResolverInterface $resolver): self
     {
         $this->untypedParamResolvers[] = $resolver;
-
         return $this;
     }
 
@@ -45,28 +44,20 @@ class Autowirer
      * @throws InvalidConfigurationException
      * @throws Exception
      */
-    public function autowire(
-        ContainerInterface $container,
-        string $className
-    ): object
+    public function autowire(ContainerInterface $container, string $className): object
     {
         $factory = $this->autoFactory($container, $className);
-
         return ($factory)($container);
     }
 
     /**
      * Checks if an object can be created based on the container's definitions.
      */
-    public function canAutowire(
-        ContainerInterface $container,
-        string $className
-    ): bool
+    public function canAutowire(ContainerInterface $container, string $className): bool
     {
         try {
             // if a factory can't be created, the exception is thrown
             $this->autoFactory($container, $className);
-
             return true;
         } catch (InvalidConfigurationException $ex) {
             return false;
@@ -80,10 +71,7 @@ class Autowirer
      *
      * @throws InvalidConfigurationException
      */
-    public function autoFactory(
-        ContainerInterface $container,
-        string $className
-    ): callable
+    public function autoFactory(ContainerInterface $container, string $className): callable
     {
         if (!class_exists($className)) {
             throw new InvalidConfigurationException(
